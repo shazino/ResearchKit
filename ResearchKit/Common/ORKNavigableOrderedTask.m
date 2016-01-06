@@ -41,14 +41,12 @@
 
 @implementation ORKNavigableOrderedTask {
     NSMutableDictionary *_stepNavigationRules;
-    NSMutableOrderedSet *_stepIdentifierStack;
 }
 
 - (instancetype)initWithIdentifier:(NSString *)identifier steps:(NSArray<ORKStep *> *)steps {
     self = [super initWithIdentifier:identifier steps:steps];
     if (self) {
         _stepNavigationRules = nil;
-        _stepIdentifierStack = nil;
     }
     return self;
 }
@@ -83,60 +81,27 @@
         if (nextStepIdentifier) {
             nextStep = [self stepWithIdentifier:nextStepIdentifier];
             
-            #if defined(DEBUG) && DEBUG
             if (step && nextStep && [self indexOfStep:nextStep] <= [self indexOfStep:step]) {
-                ORK_Log_Warning(@"Index of next step (\"%@\") is equal or lower than index of current step (\"%@\") in ordered task. Make sure this is intentional as you could loop idefinitely without appropriate navigation rules.", nextStep.identifier, step.identifier);
+                ORK_Log_Warning(@"Index of next step (\"%@\") is equal or lower than index of current step (\"%@\") in ordered task. Make sure this is intentional as you could loop idefinitely without appropriate navigation rules. Also please note that you'll get duplicate result entries each time you loop over the same step.", nextStep.identifier, step.identifier);
             }
-            #endif
         } else {
             nextStep = [super stepAfterStep:step withResult:result];
-        }
-        if (nextStep) {
-            [self updateStepIdentifierStackWithSourceIdentifier:step.identifier destinationIdentifier:nextStep.identifier];
         }
     }
     return nextStep;
 }
-    
-- (void)updateStepIdentifierStackWithSourceIdentifier:(NSString *)sourceIdentifier destinationIdentifier:(NSString *)destinationIdentifier {
-    NSParameterAssert(destinationIdentifier);
-    
-    if (!_stepIdentifierStack) {
-        _stepIdentifierStack = [NSMutableOrderedSet new];
-        // sourceIdentifier is nil if the task starts fresh,
-        // but can have a value if the task is being restored to a specific step
-        if (sourceIdentifier) {
-            [_stepIdentifierStack addObject:sourceIdentifier];
-        }
-        [_stepIdentifierStack addObject:destinationIdentifier];
-        return;
-    }
-    
-    NSUInteger indexOfSource = [_stepIdentifierStack indexOfObject:sourceIdentifier];
-    if (indexOfSource == NSNotFound) {
-        ORK_Log_Warning(@"You are calling an out of on order step in an ongoing task (\"%@\" -> \"%@\"). Clearing navigation stack.", sourceIdentifier, destinationIdentifier);
-        [_stepIdentifierStack removeAllObjects];
-        if (sourceIdentifier) {
-            [_stepIdentifierStack addObject:sourceIdentifier];
-        }
-        [_stepIdentifierStack addObject:destinationIdentifier];
-        return;
-    }
-    
-    NSUInteger stackCount = _stepIdentifierStack.count;
-    if (indexOfSource != stackCount - 1) {
-        [_stepIdentifierStack removeObjectsInRange:NSMakeRange(indexOfSource + 1, stackCount - (indexOfSource + 1))];
-    }
-    [_stepIdentifierStack addObject:destinationIdentifier];
-}
 
 - (ORKStep *)stepBeforeStep:(ORKStep *)step withResult:(ORKTaskResult *)result {
     ORKStep *previousStep = nil;
-    if (_stepIdentifierStack) {
-        NSUInteger indexOfSource = [_stepIdentifierStack indexOfObject:step.identifier];
-        if (indexOfSource != NSNotFound && indexOfSource >= 1) {
-            previousStep = [self stepWithIdentifier:_stepIdentifierStack[indexOfSource - 1]];
+    __block NSInteger indexOfCurrentStepResult = -1;
+    [result.results enumerateObjectsWithOptions:NSEnumerationReverse usingBlock:^(ORKResult *result, NSUInteger idx, BOOL *stop) {
+        if ([result.identifier isEqualToString:step.identifier]) {
+            indexOfCurrentStepResult = idx;
+            *stop = YES;
         }
+    }];
+    if (indexOfCurrentStepResult != -1 && indexOfCurrentStepResult != 0) {
+        previousStep = [self stepWithIdentifier:result.results[indexOfCurrentStepResult - 1].identifier];
     }
     return previousStep;
 }
@@ -161,7 +126,6 @@
     self = [super initWithCoder:aDecoder];
     if (self) {
         ORK_DECODE_OBJ_MUTABLE_DICTIONARY(aDecoder, stepNavigationRules, NSString, ORKStepNavigationRule);
-        ORK_DECODE_OBJ_MUTABLE_ORDERED_SET(aDecoder, stepIdentifierStack, NSString);
     }
     return self;
 }
@@ -170,7 +134,6 @@
     [super encodeWithCoder:aCoder];
     
     ORK_ENCODE_OBJ(aCoder, stepNavigationRules);
-    ORK_ENCODE_OBJ(aCoder, stepIdentifierStack);
 }
 
 #pragma mark NSCopying
@@ -178,11 +141,9 @@
 - (instancetype)copyWithZone:(NSZone *)zone {
     typeof(self) task = [super copyWithZone:zone];
     task->_stepNavigationRules = ORKMutableDictionaryCopyObjects(_stepNavigationRules);
-    task->_stepIdentifierStack = ORKMutableOrderedSetCopyObjects(_stepIdentifierStack);
     return task;
 }
 
-// Note: 'isEqual:' and 'hash' ignore _stepIdentifierStack
 - (BOOL)isEqual:(id)object {
     BOOL isParentSame = [super isEqual:object];
     
@@ -212,8 +173,7 @@ NSString * const ORKHolePegTestNonDominantRemoveStepIdentifier = @"hole.peg.test
                                                    options:(ORKPredefinedTaskOption)options {
     
     NSMutableArray *steps = [NSMutableArray array];
-    NSString *dHand = (dominantHand == ORKBodySagittalLeft) ? ORKLocalizedString(@"HOLE_PEG_TEST_LEFT", nil) : ORKLocalizedString(@"HOLE_PEG_TEST_RIGHT", nil);
-    NSString *ndHand = (dominantHand == ORKBodySagittalLeft) ? ORKLocalizedString(@"HOLE_PEG_TEST_RIGHT", nil) : ORKLocalizedString(@"HOLE_PEG_TEST_LEFT", nil);
+    BOOL dominantHandLeft = (dominantHand == ORKBodySagittalLeft);
     NSTimeInterval stepDuration = (timeLimit == 0) ? CGFLOAT_MAX : timeLimit;
     
     if (! (options & ORKPredefinedTaskOptionExcludeInstructions)) {
@@ -232,7 +192,7 @@ NSString * const ORKHolePegTestNonDominantRemoveStepIdentifier = @"hole.peg.test
         {
             ORKInstructionStep *step = [[ORKInstructionStep alloc] initWithIdentifier:ORKInstruction1StepIdentifier];
             step.title = [[NSString alloc] initWithFormat:ORKLocalizedString(@"HOLE_PEG_TEST_TITLE_%@", nil), pegs];
-            step.text = [[NSString alloc] initWithFormat:ORKLocalizedString(@"HOLE_PEG_TEST_INTRO_TEXT_2_%@", nil), dHand, ndHand, pegs, pegs];
+            step.text = dominantHandLeft ? [[NSString alloc] initWithFormat:ORKLocalizedString(@"HOLE_PEG_TEST_INTRO_TEXT_2_LEFT_HAND_FIRST_%@", nil), pegs, pegs] : [[NSString alloc] initWithFormat:ORKLocalizedString(@"HOLE_PEG_TEST_INTRO_TEXT_2_RIGHT_HAND_FIRST_%@", nil), pegs, pegs];
             step.detailText = ORKLocalizedString(@"HOLE_PEG_TEST_CALL_TO_ACTION", nil);
             UIImage *image1 = [UIImage imageNamed:@"holepegtest1" inBundle:[NSBundle bundleForClass:[self class]] compatibleWithTraitCollection:nil];
             UIImage *image2 = [UIImage imageNamed:@"holepegtest2" inBundle:[NSBundle bundleForClass:[self class]] compatibleWithTraitCollection:nil];
@@ -250,7 +210,7 @@ NSString * const ORKHolePegTestNonDominantRemoveStepIdentifier = @"hole.peg.test
     {
         {
             ORKHolePegTestPlaceStep *step = [[ORKHolePegTestPlaceStep alloc] initWithIdentifier:ORKHolePegTestDominantPlaceStepIdentifier];
-            step.title = [NSString stringWithFormat:ORKLocalizedString(@"HOLE_PEG_TEST_PLACE_INSTRUCTION_%@", nil), dHand];
+            step.title = dominantHandLeft ? ORKLocalizedString(@"HOLE_PEG_TEST_PLACE_INSTRUCTION_LEFT_HAND", nil) : ORKLocalizedString(@"HOLE_PEG_TEST_PLACE_INSTRUCTION_RIGHT_HAND", nil);
             step.text = ORKLocalizedString(@"HOLE_PEG_TEST_TEXT", nil);
             step.spokenInstruction = step.title;
             step.movingDirection = dominantHand;
@@ -266,7 +226,7 @@ NSString * const ORKHolePegTestNonDominantRemoveStepIdentifier = @"hole.peg.test
         
         {
             ORKHolePegTestRemoveStep *step = [[ORKHolePegTestRemoveStep alloc] initWithIdentifier:ORKHolePegTestDominantRemoveStepIdentifier];
-            step.title = [NSString stringWithFormat:ORKLocalizedString(@"HOLE_PEG_TEST_REMOVE_INSTRUCTION_%@", nil), dHand];
+            step.title = dominantHandLeft ? ORKLocalizedString(@"HOLE_PEG_TEST_REMOVE_INSTRUCTION_LEFT_HAND", nil) : ORKLocalizedString(@"HOLE_PEG_TEST_REMOVE_INSTRUCTION_RIGHT_HAND", nil);
             step.text = ORKLocalizedString(@"HOLE_PEG_TEST_TEXT", nil);
             step.spokenInstruction = step.title;
             step.movingDirection = (dominantHand == ORKBodySagittalLeft) ? ORKBodySagittalRight : ORKBodySagittalLeft;
@@ -281,7 +241,7 @@ NSString * const ORKHolePegTestNonDominantRemoveStepIdentifier = @"hole.peg.test
         
         {
             ORKHolePegTestPlaceStep *step = [[ORKHolePegTestPlaceStep alloc] initWithIdentifier:ORKHolePegTestNonDominantPlaceStepIdentifier];
-            step.title = [NSString stringWithFormat:ORKLocalizedString(@"HOLE_PEG_TEST_PLACE_INSTRUCTION_%@", nil), ndHand];
+            step.title = dominantHandLeft ? ORKLocalizedString(@"HOLE_PEG_TEST_PLACE_INSTRUCTION_RIGHT_HAND", nil) : ORKLocalizedString(@"HOLE_PEG_TEST_PLACE_INSTRUCTION_LEFT_HAND", nil);
             step.text = ORKLocalizedString(@"HOLE_PEG_TEST_TEXT", nil);
             step.spokenInstruction = step.title;
             step.movingDirection = (dominantHand == ORKBodySagittalLeft) ? ORKBodySagittalRight : ORKBodySagittalLeft;
@@ -297,8 +257,9 @@ NSString * const ORKHolePegTestNonDominantRemoveStepIdentifier = @"hole.peg.test
         
         {
             ORKHolePegTestRemoveStep *step = [[ORKHolePegTestRemoveStep alloc] initWithIdentifier:ORKHolePegTestNonDominantRemoveStepIdentifier];
-            step.title = [NSString stringWithFormat:ORKLocalizedString(@"HOLE_PEG_TEST_REMOVE_INSTRUCTION_%@", nil), ndHand];
+            step.title = dominantHandLeft ? ORKLocalizedString(@"HOLE_PEG_TEST_REMOVE_INSTRUCTION_RIGHT_HAND", nil) : ORKLocalizedString(@"HOLE_PEG_TEST_REMOVE_INSTRUCTION_LEFT_HAND", nil);
             step.text = ORKLocalizedString(@"HOLE_PEG_TEST_TEXT", nil);
+            step.spokenInstruction = step.title;
             step.movingDirection = dominantHand;
             step.dominantHandTested = NO;
             step.numberOfPegs = numberOfPegs;

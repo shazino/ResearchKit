@@ -58,6 +58,7 @@
 #import "ORKPSATStep.h"
 #import "ORKAccelerometerRecorder.h"
 #import "ORKAudioRecorder.h"
+#import "ORKWaitStep.h"
 
 
 ORKTaskProgress ORKTaskProgressMake(NSUInteger current, NSUInteger total) {
@@ -80,6 +81,8 @@ ORKTaskProgress ORKTaskProgressMake(NSUInteger current, NSUInteger total) {
         
         _identifier = [identifier copy];
         _steps = steps;
+        
+        [self validateParameters];
     }
     return self;
 }
