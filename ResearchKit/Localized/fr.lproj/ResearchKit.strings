@@ -328,15 +328,15 @@
 
 /* Hole peg test active task. */
 "HOLE_PEG_TEST_TITLE_%@" = "Test des %@ chevilles";
-"HOLE_PEG_TEST_INTRO_TEXT_%@" = "Cette activité évalue le fonctionnement de vos extrémités supérieures. Vous devez placer un rond dans un trou et répéter cette opération %@ fois.";
+"HOLE_PEG_TEST_INTRO_TEXT_%@" = "Cette activité mesure votre coordination motrice fine. Vous devez placer le cercle dans l’anneau. Vous devez répéter cette opération %@ fois pour chaque main.";
 "HOLE_PEG_TEST_INTRO_TEXT_2_LEFT_HAND_FIRST_%@" = "Vos deux mains seront testées.\nRamassez le rond aussi vite que possible, placez-le dans le trou et, après avoir fait cela %@ fois, retirez le rond %@ fois.";
 "HOLE_PEG_TEST_INTRO_TEXT_2_RIGHT_HAND_FIRST_%@" = "Vos deux mains seront testées.\nRamassez le rond aussi vite que possible, placez-le dans le trou et, après avoir fait cela %@ fois, retirez le rond %@ fois.";
 
 "HOLE_PEG_TEST_CALL_TO_ACTION" = "Touchez Démarrer pour commencer.";
-"HOLE_PEG_TEST_PLACE_INSTRUCTION_LEFT_HAND" = "Placez le rond dans le trou avec votre main gauche.";
-"HOLE_PEG_TEST_PLACE_INSTRUCTION_RIGHT_HAND" = "Placez le rond dans le trou avec votre main droite.";
-"HOLE_PEG_TEST_REMOVE_INSTRUCTION_LEFT_HAND" = "Placez le rond derrière la ligne avec votre main gauche.";
-"HOLE_PEG_TEST_REMOVE_INSTRUCTION_RIGHT_HAND" = "Placez le rond derrière la ligne avec votre main droite.";
+"HOLE_PEG_TEST_PLACE_INSTRUCTION_LEFT_HAND" = "Utilisez deux doigts de la main gauche pour déplacer le rond vers la droite.";
+"HOLE_PEG_TEST_PLACE_INSTRUCTION_RIGHT_HAND" = "Utilisez deux doigts de la main droite pour déplacer le rond vers la gauche.";
+"HOLE_PEG_TEST_REMOVE_INSTRUCTION_LEFT_HAND" = "Utilisez deux doigts de la main gauche pour retourner le rond vers la gauche.";
+"HOLE_PEG_TEST_REMOVE_INSTRUCTION_RIGHT_HAND" = "Utilisez deux doigts de la main droite pour retourner le rond vers la droite.";
 "HOLE_PEG_TEST_TEXT" = "Ramassez le rond avec deux doigts.";
 "HOLE_PEG_TEST_TEXT_2" = "Levez les doigts pour faire tomber le rond.";
 
